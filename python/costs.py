@@ -80,17 +80,20 @@ def extract_costs(costs):
             costs_list["TRUCK"] = (dict(DISTANCE_COSTS=costs["COSTS [MU/km]"][i],
                                         HOURLY_COSTS=costs["COSTS [MU/h]"][i],
                                         FIXED_COSTS=costs["COSTS [MU/USAGE]"][i],
-                                        OPERATING_TIME=costs["OPERATING_TIME [s]"][i]))
+                                        OPERATING_TIME=costs["OPERATING_TIME [s]"][i],
+                                        CAPACITY=costs["CAPACITY"][i]))
         elif costs["TYPE"][i] == "SEMI_TRAILER":
             costs_list["TRAILER"] = (dict(DISTANCE_COSTS=costs["COSTS [MU/km]"][i],
-                                               HOURLY_COSTS=costs["COSTS [MU/h]"][i],
-                                               FIXED_COSTS=costs["COSTS [MU/USAGE]"][i],
-                                               OPERATING_TIME=costs["OPERATING_TIME [s]"][i]))
+                                          HOURLY_COSTS=costs["COSTS [MU/h]"][i],
+                                          FIXED_COSTS=costs["COSTS [MU/USAGE]"][i],
+                                          OPERATING_TIME=costs["OPERATING_TIME [s]"][i],
+                                          CAPACITY=costs["CAPACITY"][i]))
         elif costs["TYPE"][i] == "SWAP_BODY":
             costs_list["SWAP_BODY"] = (dict(DISTANCE_COSTS=costs["COSTS [MU/km]"][i],
                                             HOURLY_COSTS=costs["COSTS [MU/h]"][i],
                                             FIXED_COSTS=costs["COSTS [MU/USAGE]"][i],
-                                            OPERATING_TIME=costs["OPERATING_TIME [s]"][i]))
+                                            OPERATING_TIME=costs["OPERATING_TIME [s]"][i],
+                                            CAPACITY=costs["CAPACITY"][i]))
     if len(costs_list) != 3:
         print("INVALID COSTS.CSV FILE")
 

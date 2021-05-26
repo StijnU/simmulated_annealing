@@ -1,3 +1,7 @@
+import itertools
+from python import costs
+
+
 def get_neighbours(solution, parameters):
     # Returns neighbors for given solution.
     neighbours = list()
@@ -8,26 +12,25 @@ def get_neighbours(solution, parameters):
 
     # relocate operator
     new_solution = solution.copy()
-    neighbours += relocate_neighbour(new_solution)
+    relocate_neighbours = relocate_neighbour(new_solution)
     # swap operator
     new_solution = solution.copy()
-    neighbours += swap_neighbour(new_solution)
+    swap_neighbours = swap_neighbour(new_solution)
     # add new route
     new_solution = solution.copy()
-    neighbours += add_new_route(new_solution, parameters)
+    add_neighbours = add_new_route(new_solution, parameters)
     # exchange operator
-    # new_solution = solution.copy()
-    # exchange_neighbours = exchange_neighbour(new_solution)
-    # neighbours += exchange_neighbours
-    exchange_neighbours = []
+    new_solution = solution.copy()
+    ex_neighbours = exchange_neighbour(new_solution)
     # cross operator
-    # neighbours += cross_neighbour(new_solution, parameters)
+    cross_neighbours = cross_neighbour(new_solution)
 
     # SB-VRP extension
     # new solutions are searched for the SB-VRP problem specific
     # swap locations and swap moves are added or removed
 
-    return neighbours, exchange_neighbours
+    # check if solutions are viable
+    return relocate_neighbours, swap_neighbours, add_neighbours, ex_neighbours, cross_neighbours
 
 
 ##################################################ADD NEW ROUTE OPERATOR#######################################
@@ -158,20 +161,20 @@ def swap_neighbour(solution):
     for route_1 in solution:
         for location_1 in route_1:
             if location_1["LOCATION_TYPE"] == "CUSTOMER":
-                for route_2 in solution:
-                    if route_1 != route_2:
-                        for location_2 in route_2:
-                            if location_2["LOCATION_TYPE"] == "CUSTOMER":
-                                neighbour_solutions += swap_customers_from_route(solution, route_1, route_2, location_1,
-                                                                                 location_2)
+                for route_2 in solution[route_1[0]["ROUTE_ID"]:]:
+                    for location_2 in route_2:
+                        if location_2["LOCATION_TYPE"] == "CUSTOMER":
+                            neighbour_solutions += swap_customers_from_route(solution, route_1, route_2, location_1,
+                                                                             location_2)
     return neighbour_solutions
 
 
 def swap_customers_from_route(solution, route_1, route_2, location_1, location_2):
     new_solutions = []
-    # try to add the location in every route from solution
+    # generate copy of routes that are being changed
     route_1_copy = route_1.copy()
     route_2_copy = route_2.copy()
+
     # generate new solution with 2 changing routes removed
     new_solution = solution.copy()
     new_solution.remove(route_1)
@@ -189,13 +192,13 @@ def swap_customers_from_route(solution, route_1, route_2, location_1, location_2
 
     # try every route_position in add_route for new location
     route_1_position = 1
-    while route_1_position < len(route_1):
+    while route_1_position < len(route_1_copy) - 1:
 
         # add location to every add_route from solution
         filled_route_1_copy = route_1_copy[:route_1_position] + [location_2_copy] + route_1_copy[route_1_position:]
         route_2_position = 1
 
-        while route_2_position < len(route_2):
+        while route_2_position < len(route_2_copy) - 1:
             filled_route_2_copy = route_2_copy[:route_2_position] + [location_1_copy] + route_2_copy[route_2_position:]
 
             # insert route in correct position according to route_ID
@@ -209,63 +212,95 @@ def swap_customers_from_route(solution, route_1, route_2, location_1, location_2
     return new_solutions
 
 
-#########################################K-EXCHANGE OPERATOR##################################################
+#########################################2-EXCHANGE OPERATOR##################################################
 # Exchanges 2 different customers in the same route
 def exchange_neighbour(solution):
     new_solutions = []
-    location_1_pos = 1
-    location_2_pos = 1
     for route in solution:
         for location_1 in route:
-            for location_2 in route[:location_1[1] - 1]:
-                if location_1 != location_2:
-                    if location_1[4] == "CUSTOMER" and location_2[4] == "CUSTOMER":
-                        new_route = route.copy()
-                        new_route[location_2[1] - 1] = location_1
-                        new_route[location_1[1] - 1] = location_2
+            for location_2 in route[location_1["ROUTE_LOCATION"]:]:
+                if location_1["LOCATION_TYPE"] == "CUSTOMER" and location_2["LOCATION_TYPE"] == "CUSTOMER":
+                    new_route = route.copy()
+                    new_route[location_2["ROUTE_LOCATION"] - 1] = location_1
+                    new_route[location_1["ROUTE_LOCATION"] - 1] = location_2
 
-                        new_solution = solution[:route[0][0] - 1] + [new_route] + solution[route[0][0] - 1:]
-                        new_solutions.append(new_solution)
-                        location_2_pos += 1
-            location_1_pos += 1
-            location_2_pos = 1
-
+                    new_solution = solution[:route[0]["ROUTE_ID"] - 1] + [new_route] + solution[route[0]["ROUTE_ID"]:]
+                    new_solutions.append(new_solution)
     return new_solutions
 
 
 #########################################CROSS OPERATOR#######################################################
-def cross_neighbour(solution, parameters):
+# this operator chooses 2 locations from 2 different routes than swaps them and puts them in the first position
+# it then tries every combination of the other locations in the routes
+def cross_neighbour(solution):
     new_solutions = []
     for route_1 in solution:
-        for route_2 in solution[:route_1[0][0] - 1]:
-            if route_1 != route_2:
-                if len(route_1) > 3 and len(route_2) > 3:
-                    for location_1 in route_1:
-                        for location_2 in route_2:
-                            if location_1[4] == "CUSTOMER" and location_2[4] == "CUSTOMER":
-                                new_route_1 = route_1.copy()
-                                new_route_2 = route_2.copy()
-                                new_solution = solution.copy()
-                                new_solution.remove(route_1)
-                                new_solution.remove(route_2)
+        for route_2 in solution[route_1[0]["ROUTE_ID"]:]:
+            if len(route_1) > 3 and len(route_2) > 3:
+                for location_1 in route_1:
+                    for location_2 in route_2:
+                        if location_1["LOCATION_TYPE"] == "CUSTOMER" and location_2["LOCATION_TYPE"] == "CUSTOMER":
+                            new_route_1 = route_1.copy()
+                            new_route_2 = route_2.copy()
+                            new_solution = solution.copy()
+                            new_solution.remove(route_1)
+                            new_solution.remove(route_2)
 
-                                new_route_1.remove(location_1)
-                                new_route_2.remove(location_2)
+                            new_route_1.remove(location_1)
+                            new_route_2.remove(location_2)
 
-                                new_route_1_length = len(new_route_1)
-                                new_route_2_length = len(new_route_2)
+                            new_routes_1 = \
+                                itertools.permutations(new_route_1[1:len(new_route_1) - 1], len(new_route_1) - 2)
+                            new_routes_2 = \
+                                itertools.permutations(new_route_2[1:len(new_route_2) - 1], len(new_route_2) - 2)
 
-                                insert_position_1 = 1
-                                insert_position_2 = 1
+                            for permuted_route_1 in new_routes_1:
+                                for permuted_route_2 in new_routes_2:
+                                    new_route_1 = [new_route_1[0]] + [location_2] + \
+                                                  list(permuted_route_1) + [new_route_1[len(new_route_1) - 1]]
+                                    new_route_2 = [new_route_2[0]] + [location_1] + \
+                                                  list(permuted_route_2) + [new_route_2[len(new_route_2) - 1]]
 
-                                while insert_position_1 < new_route_1_length:
-                                    new_route_1 = new_route_1[:insert_position_1] + [location_2] \
-                                                  + new_route_1[insert_position_1:]
-                                    while insert_position_2 < new_route_2_length:
-                                        new_route_2 = new_route_2[:insert_position_2] + [location_1] \
-                                                      + new_route_2[insert_position_2:]
-                                        new_solution += [new_route_1] + [new_route_2]
-                                        new_solutions.append(new_solution)
-                                        insert_position_2 += 1
-                                    insert_position_1 += 1
+                                    added_new_solution = new_solution + [new_route_1] + [new_route_2]
+                                    new_solutions.append(added_new_solution)
     return new_solutions
+
+
+def check_viable_solution(solution, max_amount):
+    for route in solution:
+        customer_amounts = [location["SWAP_BODY_1_QUANTITY"] for location in route if
+                            location["LOCATION_TYPE"] == "CUSTOMER"]
+        total_amount = sum(customer_amounts)
+
+        if total_amount > max_amount:
+            return False
+
+        customer_amounts = [location["SWAP_BODY_2_QUANTITY"] for location in route if
+                                location["LOCATION_TYPE"] == "CUSTOMER"]
+        total_amount = sum(customer_amounts)
+        if total_amount > max_amount:
+            return False
+    return True
+
+
+def check_quantities(solution):
+    for route in solution:
+        last_loc_amount = 0
+        customer_amounts = [location["SWAP_BODY_1_QUANTITY"] for location in route if
+                                location["LOCATION_TYPE"] == "CUSTOMER"]
+        total_amount = sum(customer_amounts)
+
+        for location in route:
+            if location["LOCATION_TYPE"] == "DEPOT":
+                if location["ROUTE_LOCATION"] == 1:
+                        location["SWAP_BODY_1_QUANTITY"] = total_amount
+
+            if location["LOCATION_TYPE"] == "CUSTOMER":
+                if last_loc_amount == 0:
+                    last_loc_amount = location["SWAP_BODY_1_QUANTITY"]
+                    location["SWAP_BODY_1_QUANTITY"] = total_amount
+                    continue
+
+                last_loc_amount = location["SWAP_BODY_1_QUANTITY"]
+                total_amount = total_amount - last_loc_amount
+                location["SWAP_BODY_1_QUANTITY"] = total_amount

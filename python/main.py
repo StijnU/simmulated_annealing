@@ -1,9 +1,11 @@
 import sys
-from python import costs, simulated_annealing as sa, data
+from python import costs
+from python import simulated_annealing as sa
+from python import data
 
 # MAIN FUNCTION
 
-# Arguments should hold all data needed to solve the sbvrp problem in csv files
+# Arguments should hold all instances needed to solve the sbvrp problem in csv files
 # the csv files always should have the same format with following files:
 #
 # DistanceTimesCoordinates.csv,
@@ -16,25 +18,35 @@ from python import costs, simulated_annealing as sa, data
 
 
 if __name__ == '__main__':
+
     print("#####################SIMULATED ANNEALING###################")
     print("Start Algorithm")
     print(sys.argv)
     args = sys.argv[1:]
-    starting_temperature = 10000
-    exit_temperature = 1000
-    alpha = 100
-    parameters = data.read_data(args)
+    instance = args[5]
+    starting_temperature = 1000 #int(args[6])
+    exit_temperature = 100###int(args[7])
+    alpha = 1 #float(args[8])
+    parameters = data.read_data(args, instance)
+
     print("#######################################")
-    print("Generating initial solution using simulated annealing")
+    print("Generating initial solution")
+    print("Starting simulated annealing using following parameters")
     print("Starting temperature: "+str(starting_temperature))
-    print("Exit temperature: "+ str(exit_temperature))
-    print("Aplha: "+ str(alpha))
+    print("Exit temperature: "+str(exit_temperature))
+    print("Aplha: "+str(alpha))
     print("#######################################")
+
+    # create initial solution
     initial_solution = sa.get_initial_solution(parameters)
-    best_found_solution = sa.simulated_annealing(initial_solution, parameters, 10000, 1000, 100)
 
+    # perform simulated annealing with given parameters
+    best_found_solution = sa.simulated_annealing(initial_solution,
+                                                 parameters,
+                                                 starting_temperature,
+                                                 exit_temperature,
+                                                 alpha)
 
-    data.write_data(best_found_solution)
     print("Cost of initial solution: " + str(costs.get_cost(initial_solution, parameters)))
     print("Cost of best found solution: " + str(costs.get_cost(best_found_solution, parameters)))
 
@@ -48,8 +60,8 @@ if __name__ == '__main__':
     for route in best_found_solution:
         for location in route:
             if location["LOCATION_ID"] != "D1":
-                customer_list.remove(location["LOCATION_ID"])
-            #print(location)
+                if location["LOCATION_ID"] in customer_list:
+                    customer_list.remove(location["LOCATION_ID"])
             total_loc += 1
 
     if customer_list == list():
@@ -64,5 +76,9 @@ if __name__ == '__main__':
         print(customer_list)
         print("#######################################")
 
+    for route in best_found_solution:
+            for location in route:
+                print(location)
 
     data.plot_solution(best_found_solution)
+    data.write_data(best_found_solution)
